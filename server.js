@@ -11,7 +11,7 @@ var App = function(){
 
   // Setup
   self.dbServer = new mongodb.Server(process.env.OPENSHIFT_MONGODB_DB_HOST,parseInt(process.env.OPENSHIFT_MONGODB_DB_PORT));
-  self.db = new mongodb.Db('nodews', self.dbServer, {auto_reconnect: true});
+  self.db = new mongodb.Db(process.env.OPENSHIFT_APP_NAME, self.dbServer, {auto_reconnect: true});
   self.dbUser = process.env.OPENSHIFT_MONGODB_DB_USERNAME;
   self.dbPass = process.env.OPENSHIFT_MONGODB_DB_PASSWORD;
 
@@ -26,13 +26,18 @@ var App = function(){
   self.routes = {};
   self.routes['health'] = function(req, res){ res.send('1'); };
   
-  self.routes['root'] = function(req, res){res.send('You have come to the park apps web service. All the web services are at /ws/parks*. For example /ws/parks will return all the parks in the system in a JSON payload. Thanks for stopping by and have a nice day'); };
+  //default response with info about app URLs
+  self.routes['root'] = function(req, res){ 
+    res.send('You have come to the park apps web service. All the web services are at /ws/parks*. \
+      For example /ws/parks will return all the parks in the system in a JSON payload. \
+      Thanks for stopping by and have a nice day'); 
+  };
 
   //returns all the parks in the collection
   self.routes['returnAllParks'] = function(req, res){
     self.db.collection('parkpoints').find().toArray(function(err, names) {
-        res.header("Content-Type:","application/json");
-        res.end(JSON.stringify(names));
+      res.header("Content-Type:","application/json");
+      res.end(JSON.stringify(names));
     });
   };
 
@@ -41,62 +46,59 @@ var App = function(){
       var BSON = mongodb.BSONPure;
       var parkObjectID = new BSON.ObjectID(req.params.id);
       self.db.collection('parkpoints').find({'_id':parkObjectID}).toArray(function(err, names){
-              res.header("Content-Type:","application/json");
-              res.end(JSON.stringify(names));
+        res.header("Content-Type:","application/json"); 
+        res.end(JSON.stringify(names));
       });
-  };
-
+  }
 
   //find parks near a certain lat and lon passed in as query parameters (near?lat=45.5&lon=-82)
   self.routes['returnParkNear'] = function(req, res){
-      //in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
-      var lat = parseFloat(req.query.lat);
-      var lon = parseFloat(req.query.lon);
-
-      self.db.collection('parkpoints').find( {"pos" : {$near: [lon,lat]}}).toArray(function(err,names){
-          res.header("Content-Type:","application/json");
-          res.end(JSON.stringify(names));
-       });
+    //in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
+    var lat = parseFloat(req.query.lat);
+    var lon = parseFloat(req.query.lon);
+    self.db.collection('parkpoints').find( {"pos" : {$near: [lon,lat]}}).toArray(function(err,names){
+      res.header("Content-Type:","application/json");
+      res.end(JSON.stringify(names));
+    });
   };
 
-
+  //find parks near a certain park name, lat and lon (name?lon=10&lat=10)
   self.routes['returnParkNameNear'] = function(req, res){
-      var lat = parseFloat(req.query.lat);
-      var lon = parseFloat(req.query.lon);
-      var name = req.params.name;
-      self.db.collection('parkpoints').find( {"Name" : {$regex : name, $options : 'i'}, "pos" : { $near : [lon,lat]}}).toArray(function(err,names){
-          res.header("Content-Type:","application/json");
-          res.end(JSON.stringify(names));
-      });
+    //in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
+    var lat = parseFloat(req.query.lat);
+    var lon = parseFloat(req.query.lon);
+    var name = req.params.name;
+    self.db.collection('parkpoints').find( {"Name" : {$regex : name, $options : 'i'}, "pos" : { $near : [lon,lat]}}).toArray(function(err,names){
+      res.header("Content-Type:","application/json");
+      res.end(JSON.stringify(names));
+    });
   };
 
+  //saves new park
   self.routes['postAPark'] = function(req, res){
-
-     var name = req.body.name;
-     var lat = req.body.lat;
-     var lon = req.body.lon;
-     console.log(req.body);
-
-     self.db.collection('parkpoints').insert({'Name' : name, 'pos' : [lon,lat ]}), function(result){
-         //we should have caught errors here for a real app
-         res.end('success');
-     };
+    //in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
+    var lat = parseFloat(req.body.lat);
+    var lon = parseFloat(req.body.lon);
+    var name = req.body.name;
+    self.db.collection('parkpoints').insert( {'Name' : name, 'pos' : [lon,lat]}, {w:1}, function(err, records){
+    if (err) { throw err; }
+    res.end('success');
+    });
   };
-
-
-
 
 
   // Web app urls
-  
   self.app  = express();
 
   //This uses the Connect frameworks body parser to parse the body of the post request
-  self.app.configure(function () {
-        self.app.use(express.bodyParser());
-        self.app.use(express.methodOverride());
-        self.app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
-  });
+  var bodyParser = require('body-parser');
+  var methodOverride = require('method-override');
+  // parse application/x-www-form-urlencoded
+  self.app.use(bodyParser.urlencoded());
+  // parse application/json
+  self.app.use(bodyParser.json());
+  // override with POST having ?_method=DELETE
+  self.app.use(methodOverride('_method'))
 
   //define all the url mappings
   self.app.get('/health', self.routes['health']);
@@ -108,7 +110,6 @@ var App = function(){
   self.app.post('/ws/parks/park', self.routes['postAPark']);
 
   // Logic to open a database connection. We are going to call this outside of app so it is available to all our functions inside.
-
   self.connectDb = function(callback){
     self.db.open(function(err, db){
       if(err){ throw err };
