@@ -3,6 +3,7 @@
 var express = require('express');
 var fs      = require('fs');
 var mongodb = require('mongodb');
+var path    = require('path');
 
 var App = function(){
 
@@ -10,25 +11,23 @@ var App = function(){
   var self = this;
 
   // Setup
-  self.dbServer = new mongodb.Server(process.env.OPENSHIFT_MONGODB_DB_HOST,parseInt(process.env.OPENSHIFT_MONGODB_DB_PORT));
-  self.db = new mongodb.Db(process.env.OPENSHIFT_APP_NAME, self.dbServer, {auto_reconnect: true});
-  self.dbUser = process.env.OPENSHIFT_MONGODB_DB_USERNAME;
-  self.dbPass = process.env.OPENSHIFT_MONGODB_DB_PASSWORD;
+  self.dbServer = new mongodb.Server(process.env.MONGODB_SERVICE_HOST,parseInt(process.env.MONGODB_SERVICE_PORT));
+  self.db = new mongodb.Db(process.env.MONGODB_DATABASE, self.dbServer, {auto_reconnect: true});
+  self.dbUser = process.env.MONGODB_USER;
+  self.dbPass = process.env.MONGODB_ADMIN_PASSWORD;
 
-  self.ipaddr  = process.env.OPENSHIFT_NODEJS_IP;
-  self.port    = parseInt(process.env.OPENSHIFT_NODEJS_PORT) || 8080;
-  if (typeof self.ipaddr === "undefined") {
-    console.warn('No OPENSHIFT_NODEJS_IP environment variable');
-  };
-
+  self.ipaddr  = '0.0.0.0';
+  self.port    = 8080;
 
   // Web app logic
   self.routes = {};
   self.routes['health'] = function(req, res){ res.send('1'); };
+  self.routes['root'] = function(req, res){ res.sendFile(path.join(__dirname + '/index.html'));
+};
   
   //default response with info about app URLs
-  self.routes['root'] = function(req, res){ 
-    res.send('You have come to the park apps web service. All the web services are at /ws/parks*. \
+  self.routes['dbinfo'] = function(req, res){ 
+    res.send('\n\nI MADE A CHANGE TO THE V2 APP!!! \n\nI HAVE MY WEBHOOK SET UP CORRECTLY!!!! \n You have come to the park apps web service. All the web services are at /ws/parks*. \
       For example /ws/parks will return all the parks in the system in a JSON payload. \
       Thanks for stopping by and have a nice day'); 
   };
@@ -94,13 +93,16 @@ var App = function(){
   var bodyParser = require('body-parser');
   var methodOverride = require('method-override');
   // parse application/x-www-form-urlencoded
-  self.app.use(bodyParser.urlencoded());
+  self.app.use(bodyParser.urlencoded({
+  extended: true
+}));
   // parse application/json
   self.app.use(bodyParser.json());
   // override with POST having ?_method=DELETE
   self.app.use(methodOverride('_method'))
 
   //define all the url mappings
+  self.app.get('/dbinfo', self.routes['dbinfo']);
   self.app.get('/health', self.routes['health']);
   self.app.get('/', self.routes['root']);
   self.app.get('/ws/parks', self.routes['returnAllParks']);

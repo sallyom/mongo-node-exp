@@ -2,7 +2,7 @@
   "name": "OpenShift-Sample-App",
   "version": "1.0.0",
   "description": "OpenShift Sample Application",
-  "homepage": "https://www.openshift.com/",
+  "homepage": "https://github.com/sallyom/mongo-node-exp.git",
   "keywords": [
     "OpenShift",
     "Node.js",
@@ -12,7 +12,7 @@
 
   "repository": {
     "type": "git",
-    "url": "https://gitub.com/openshift-quickstart/openshift-mongo-node-express-example"
+    "url": "https://github.com/sallyom/mongo-node-exp.git"
   },
 
   "engines": {
