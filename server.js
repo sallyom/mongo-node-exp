@@ -27,7 +27,7 @@ var App = function(){
   
   //default response with info about app URLs
   self.routes['dbinfo'] = function(req, res){ 
-    res.send('\n\nI MADE A CHANGE TO THE V2 APP!!! \n\nI HAVE MY WEBHOOK SET UP CORRECTLY!!!! \n You have come to the park apps web service. All the web services are at /ws/parks*. \
+    res.send('You have come to the park apps web service. All the web services are at /ws/parks*. \
       For example /ws/parks will return all the parks in the system in a JSON payload. \
       Thanks for stopping by and have a nice day'); 
   };
